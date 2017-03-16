@@ -52,10 +52,10 @@ Add a background job. The result can be retrieved through the ["result"](#result
 
 ```go
 job := &workq.BgJob{
-	ID: "6ba7b810-9dad-11d1-80b4-00c04fd430c4",
+	ID: "61a444a0-6128-41c0-8078-cc757d3bd2d8",
 	Name: "ping",
 	TTR: 5000,       // 5 second time-to-run limit
-  TTL: 60000,      // Expire after 60 seconds
+    TTL: 60000,      // Expire after 60 seconds
 	Payload: []byte("Ping!"),
 	Priority: 10,    // @OPTIONAL Numeric priority, default 0.
 	MaxAttempts: 3,  // @OPTIONAL Absolute max num of attempts.
@@ -75,7 +75,7 @@ Run a job and wait for its result.
 
 ```go
 job := &workq.FgJob{
-	ID: "6ba7b810-9dad-11d1-80b4-00c04fd430c4",
+	ID: "61a444a0-6128-41c0-8078-cc757d3bd2d8",
 	Name: "ping",
 	TTR: 5000,          // 5 second time-to-run limit
 	Timeout: 60000, // Wait up to 60 seconds for a worker to pick up.
@@ -98,15 +98,15 @@ Schedule a job at a UTC time. The result can be retrieved through the ["result"]
 
 ```go
 job := &workq.ScheduledJob{
-	ID: "6ba7b810-9dad-11d1-80b4-00c04fd430c4",
+	ID: "61a444a0-6128-41c0-8078-cc757d3bd2d8",
 	Name: "ping",
 	Time:    "2016-12-01T00:00:00Z", // Start job at this UTC time.
 	TTL: 60000,                      // Expire after 60 seconds
 	TTR: 5000,                       // 5 second time-to-run limit
 	Payload: []byte("Ping!"),
 	Priority: 10,                    // @OPTIONAL Numeric priority, default 0.
-  MaxAttempts: 3,                  // @OPTIONAL Absolute max num of attempts.
-  MaxFails: 1,                     // @OPTIONAL Absolute max number of failures.
+    MaxAttempts: 3,                  // @OPTIONAL Absolute max num of attempts.
+    MaxFails: 1,                     // @OPTIONAL Absolute max number of failures.
 }
 err := client.Schedule(job)
 if err != nil {
@@ -118,11 +118,11 @@ if err != nil {
 
 [Protocol Doc](https://github.com/iamduo/workq/blob/master/doc/protocol.md#result) | [Go Doc](https://godoc.org/github.com/iamduo/go-workq#Client.Result)
 
-Get a job result previously executed by [Run](#run) or [Schedule](#schedule) commands.
+Get a job result previously executed by [Add](#add) or [Schedule](#schedule) commands.
 
 ```go
 // Get a job result, waiting up to 60 seconds if the job is still executing.
-result, err := client.Result("6ba7b810-9dad-11d1-80b4-00c04fd430c4", 60000)
+result, err := client.Result("61a444a0-6128-41c0-8078-cc757d3bd2d8", 60000)
 if err != nil {
 	// ...
 }
@@ -156,7 +156,7 @@ fmt.Printf("Leased Job: ID: %s, Name: %s, Payload: %s", job.ID, job.Name, job.Pa
 Mark a job successfully completed with a result.
 
 ```go
-err := client.Complete("6ba7b810-9dad-11d1-80b4-00c04fd430c4", []byte("Pong!"))
+err := client.Complete("61a444a0-6128-41c0-8078-cc757d3bd2d8", []byte("Pong!"))
 if err != nil {
 	// ...
 }
@@ -169,7 +169,7 @@ if err != nil {
 Mark a job failed with a result.
 
 ```go
-err := client.Fail("6ba7b810-9dad-11d1-80b4-00c04fd430c4", []byte("Failed-Pong!"))
+err := client.Fail("61a444a0-6128-41c0-8078-cc757d3bd2d8", []byte("Failed-Pong!"))
 if err != nil {
 	// ...
 }
@@ -183,7 +183,7 @@ if err != nil {
 
 
 ```go
-err := client.Delete("6ba7b810-9dad-11d1-80b4-00c04fd430c4")
+err := client.Delete("61a444a0-6128-41c0-8078-cc757d3bd2d8")
 if err != nil {
 	// ...
 }

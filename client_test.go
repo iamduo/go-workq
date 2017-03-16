@@ -537,7 +537,7 @@ func TestLease(t *testing.T) {
 	conn := &TestConn{
 		rdr: bytes.NewBuffer([]byte(
 			"+OK 1\r\n" +
-				"6ba7b810-9dad-11d1-80b4-00c04fd430c4 j1 1\r\n" +
+				"6ba7b810-9dad-11d1-80b4-00c04fd430c4 j1 1000 1\r\n" +
 				"a\r\n",
 		)),
 		wrt: bytes.NewBuffer([]byte("")),
@@ -554,6 +554,10 @@ func TestLease(t *testing.T) {
 
 	if j.Name != "j1" {
 		t.Fatalf("Name mismatch")
+	}
+
+	if j.TTR != 1000 {
+		t.Fatalf("TTR mismatch")
 	}
 
 	if !bytes.Equal([]byte("a"), j.Payload) {

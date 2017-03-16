@@ -42,6 +42,7 @@ type ScheduledJob struct {
 type LeasedJob struct {
 	ID      string
 	Name    string
+	TTR     int
 	Payload []byte
 }
 

@@ -441,7 +441,7 @@ func (p *responseParser) readResult() (*JobResult, error) {
 func (p *responseParser) readLeasedJob() (*LeasedJob, error) {
 	line, err := p.readLine()
 	split := strings.Split(string(line), " ")
-	if len(split) != 3 {
+	if len(split) != 4 {
 		return nil, ErrMalformed
 	}
 
@@ -456,7 +456,14 @@ func (p *responseParser) readLeasedJob() (*LeasedJob, error) {
 		return nil, err
 	}
 
-	payloadLen, err := strconv.ParseUint(split[2], 10, 64)
+	ttr, err := strconv.ParseInt(split[2], 10, 64)
+	if err != nil {
+		return nil, ErrMalformed
+	}
+
+	j.TTR = int(ttr)
+
+	payloadLen, err := strconv.ParseUint(split[3], 10, 64)
 	if err != nil {
 		return nil, ErrMalformed
 	}
