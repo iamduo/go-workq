@@ -464,7 +464,7 @@ func TestResult(t *testing.T) {
 	}
 
 	if !bytes.Equal([]byte("a"), result.Result) {
-		t.Fatalf("Resullt mismatch")
+		t.Fatalf("Result mismatch")
 	}
 
 	expWrite := []byte(
@@ -817,6 +817,274 @@ func TestDeleteBadConnError(t *testing.T) {
 	err := client.Delete("6ba7b810-9dad-11d1-80b4-00c04fd430c4")
 	if _, ok := err.(*NetError); !ok {
 		t.Fatalf("Error mismatch, err=%+v", err)
+	}
+}
+
+func TestInspectJobs(t *testing.T) {
+	conn := &TestConn{
+		rdr: bytes.NewBuffer([]byte(
+			"+OK 2\r\n" +
+				"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+				"name ping\r\n" +
+				"ttr 1000\r\n" +
+				"ttl 60000\r\n" +
+				"payload-size 4\r\n" +
+				"payload ping\r\n" +
+				"max-attempts 0\r\n" +
+				"attempts 0\r\n" +
+				"max-fails 0\r\n" +
+				"fails 0\r\n" +
+				"priority 0\r\n" +
+				"state 0\r\n" +
+				"created 2016-08-22T01:50:51Z\r\n" +
+				"6ba7b810-9dad-11d1-80b4-00c04fd430c6 12\r\n" +
+				"name ping\r\n" +
+				"ttr 1000\r\n" +
+				"ttl 60000\r\n" +
+				"payload-size 4\r\n" +
+				"payload ping\r\n" +
+				"max-attempts 0\r\n" +
+				"attempts 0\r\n" +
+				"max-fails 0\r\n" +
+				"fails 0\r\n" +
+				"priority 0\r\n" +
+				"state 0\r\n" +
+				"created 2016-08-22T02:00:17Z\r\n",
+		)),
+		wrt: bytes.NewBuffer([]byte("")),
+	}
+	client := NewClient(conn)
+	result, err := client.InspectJobs("ping", 0, 10)
+	if err != nil {
+		t.Fatalf("Response mismatch, err=%s", err)
+	}
+
+	if len(result) != 2 {
+		t.Fatalf("Reply count mismatch")
+	}
+
+	if result[0].ID != "6ba7b810-9dad-11d1-80b4-00c04fd430c4" {
+		t.Fatalf("Result mismatch")
+	}
+	if result[1].ID != "6ba7b810-9dad-11d1-80b4-00c04fd430c6" {
+		t.Fatalf("Result mismatch")
+	}
+
+	expWrite := []byte(
+		"inspect jobs ping 0 10\r\n",
+	)
+	if !bytes.Equal(expWrite, conn.wrt.Bytes()) {
+		t.Fatalf("Write mismatch, act=%s", conn.wrt.Bytes())
+	}
+}
+
+func TestInspectJobsErrors(t *testing.T) {
+	tests := []RespErrTestCase{
+		// Invalid reply-count
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+				"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n"+
+				"name ping\r\n"+
+				"ttr 1000\r\n"+
+				"ttl 60000\r\n"+
+				"payload-size 4\r\n"+
+				"payload ping\r\n"+
+				"max-attempts 0\r\n"+
+				"attempts 0\r\n"+
+				"max-fails 0\r\n"+
+				"fails 0\r\n"+
+				"priority 0\r\n"+
+				"state 0\r\n"+
+				"created 2016-08-22T01:50:51Z\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// payload after payload size but with other keys in between
+		{
+			resp: []byte(
+				"+OK 1\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n"+
+					"name ping\r\n"+
+					"ttr 1000\r\n"+
+					"ttl 60000\r\n"+
+					"payload-size 4\r\n"+
+					"max-attempts 0\r\n"+
+					"payload ping\r\n"+
+					"attempts 0\r\n"+
+					"max-fails 0\r\n"+
+					"fails 0\r\n"+
+					"priority 0\r\n"+
+					"state 0\r\n"+
+					"created 2016-08-22T01:50:51Z\r\n",
+			),
+			expErr: ErrPayloadMustFollowSize,
+		},
+		// payload before payload-size
+		{
+			resp: []byte(
+				"+OK 1\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n"+
+					"name ping\r\n"+
+					"ttr 1000\r\n"+
+					"payload ping\r\n"+
+					"ttl 60000\r\n"+
+					"payload-size 4\r\n"+
+					"max-attempts 0\r\n"+
+					"attempts 0\r\n"+
+					"max-fails 0\r\n"+
+					"fails 0\r\n"+
+					"priority 0\r\n"+
+					"state 0\r\n"+
+					"created 2016-08-22T01:50:51Z\r\n",
+			),
+			expErr: ErrPayloadMustFollowSize,
+		},
+		// Invalid key-count (too small)
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 11\r\n" +
+					"name ping\r\n" +
+					"ttr 1000\r\n" +
+					"ttl 60000\r\n" +
+					"payload-size 4\r\n" +
+					"payload ping\r\n" +
+					"max-attempts 0\r\n" +
+					"attempts 0\r\n" +
+					"max-fails 0\r\n" +
+					"fails 0\r\n" +
+					"priority 0\r\n" +
+					"state 0\r\n" +
+					"created 2016-08-22T01:50:51Z\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c6 12\r\n" +
+					"name ping\r\n" +
+					"ttr 1000\r\n" +
+					"ttl 60000\r\n" +
+					"payload-size 4\r\n" +
+					"payload ping\r\n" +
+					"max-attempts 0\r\n" +
+					"attempts 0\r\n" +
+					"max-fails 0\r\n" +
+					"fails 0\r\n" +
+					"priority 0\r\n" +
+					"state 0\r\n" +
+					"created 2016-08-22T02:00:17Z\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid key-count (too small) on last reply
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"name ping\r\n" +
+					"ttr 1000\r\n" +
+					"ttl 60000\r\n" +
+					"payload-size 4\r\n" +
+					"payload ping\r\n" +
+					"max-attempts 0\r\n" +
+					"attempts 0\r\n" +
+					"max-fails 0\r\n" +
+					"fails 0\r\n" +
+					"priority 0\r\n" +
+					"state 0\r\n" +
+					"created 2016-08-22T01:50:51Z\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c6 11\r\n" +
+					"name ping\r\n" +
+					"ttr 1000\r\n" +
+					"ttl 60000\r\n" +
+					"payload-size 4\r\n" +
+					"payload ping\r\n" +
+					"max-attempts 0\r\n" +
+					"attempts 0\r\n" +
+					"max-fails 0\r\n" +
+					"fails 0\r\n" +
+					"priority 0\r\n" +
+					"state 0\r\n" +
+					"created 2016-08-22T02:00:17Z\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid key-count (too large)
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 13\r\n" +
+					"name ping\r\n" +
+					"ttr 1000\r\n" +
+					"ttl 60000\r\n" +
+					"payload-size 4\r\n" +
+					"payload ping\r\n" +
+					"max-attempts 0\r\n" +
+					"attempts 0\r\n" +
+					"max-fails 0\r\n" +
+					"fails 0\r\n" +
+					"priority 0\r\n" +
+					"state 0\r\n" +
+					"created 2016-08-22T01:50:51Z\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c6 12\r\n" +
+					"name ping\r\n" +
+					"ttr 1000\r\n" +
+					"ttl 60000\r\n" +
+					"payload-size 4\r\n" +
+					"payload ping\r\n" +
+					"max-attempts 0\r\n" +
+					"attempts 0\r\n" +
+					"max-fails 0\r\n" +
+					"fails 0\r\n" +
+					"priority 0\r\n" +
+					"state 0\r\n" +
+					"created 2016-08-22T02:00:17Z\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid key-count (too large) on last reply
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"name ping\r\n" +
+					"ttr 1000\r\n" +
+					"ttl 60000\r\n" +
+					"payload-size 4\r\n" +
+					"payload ping\r\n" +
+					"max-attempts 0\r\n" +
+					"attempts 0\r\n" +
+					"max-fails 0\r\n" +
+					"fails 0\r\n" +
+					"priority 0\r\n" +
+					"state 0\r\n" +
+					"created 2016-08-22T01:50:51Z\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c6 13\r\n" +
+					"name ping\r\n" +
+					"ttr 1000\r\n" +
+					"ttl 60000\r\n" +
+					"payload-size 4\r\n" +
+					"payload ping\r\n" +
+					"max-attempts 0\r\n" +
+					"attempts 0\r\n" +
+					"max-fails 0\r\n" +
+					"fails 0\r\n" +
+					"priority 0\r\n" +
+					"state 0\r\n" +
+					"created 2016-08-22T02:00:17Z\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+	}
+	tests = append(tests, invalidCommonErrorTests()...)
+
+	for _, tt := range tests {
+		conn := &TestConn{
+			rdr: bytes.NewBuffer(tt.resp),
+			wrt: bytes.NewBuffer([]byte("")),
+		}
+		client := NewClient(conn)
+		j, err := client.InspectJobs("ping", 0,10)
+		if j != nil || err == nil || tt.expErr == nil || err.Error() != tt.expErr.Error() {
+			t.Fatalf("Response mismatch, err=%q, expErr=%q", err, tt.expErr)
+		}
 	}
 }
 

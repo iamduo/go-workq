@@ -192,6 +192,18 @@ if err != nil {
 
 #### Inspect
 
-[Protocol Doc](https://github.com/iamduo/workq/blob/master/doc/protocol.md#inspect)
+[Protocol Doc](https://github.com/iamduo/workq/blob/master/doc/protocol.md#inspect) | [Go Doc](https://godoc.org/github.com/iamduo/go-workq#Client.InspectJobs)
 
-Inspect commands not yet supported yet.
+##### Inspect foreground or background jobs by name
+
+```go
+// Inspect jobs with name "ping" starting from cursor offset 0 and limiting results to 10.
+jobs, err = client.InspectJobs("ping", 0, 10)
+if err != nil {
+	// ...
+}
+// Print jobs as table
+for _, job := range jobs {
+    fmt.Printf("%s\t%d\t%s\n", job.ID, job.Priority, job.Created.Local())
+}
+```
