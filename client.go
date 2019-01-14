@@ -521,9 +521,6 @@ func (p *responseParser) readInspectedJobs(replyCount int) ([]*InspectedJob, err
 		}
 		jobs = append(jobs, job)
 	}
-	if len(jobs) != replyCount {
-		return nil, ErrMalformed
-	}
 
 	// Check for unexpected trailing bytes
 	block := make([]byte, 1)
@@ -574,7 +571,10 @@ func (p *responseParser) parseInspectedJob() (*InspectedJob, error) {
 
 		switch split[0] {
 		case "name":
-			j.Name = split[1]
+			j.Name, err = nameFromString(split[1])
+			if err != nil {
+				return nil, ErrMalformed
+			}
 		case "ttr":
 			ttr, err := strconv.ParseUint(split[1], 10, 32)
 			if err != nil {
@@ -594,7 +594,7 @@ func (p *responseParser) parseInspectedJob() (*InspectedJob, error) {
 		case "payload-size":
 			payloadSize, err := strconv.ParseUint(split[1], 10, 64)
 			if err != nil {
-				return nil, err
+				return nil, ErrMalformed
 			}
 			// Payload line has to immediately follow payload-size line because the entire
 			// payload must be read as bytes regardless of the newlines it may contain.

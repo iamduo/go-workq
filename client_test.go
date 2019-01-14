@@ -854,20 +854,54 @@ func TestInspectJobs(t *testing.T) {
 		wrt: bytes.NewBuffer([]byte("")),
 	}
 	client := NewClient(conn)
-	result, err := client.InspectJobs("ping", 0, 10)
+	jobs, err := client.InspectJobs("ping", 0, 10)
 	if err != nil {
 		t.Fatalf("Response mismatch, err=%s", err)
 	}
 
-	if len(result) != 2 {
+	if len(jobs) != 2 {
 		t.Fatalf("Reply count mismatch")
 	}
 
-	if result[0].ID != "6ba7b810-9dad-11d1-80b4-00c04fd430c4" {
-		t.Fatalf("Result mismatch")
+	if jobs[0].ID != "6ba7b810-9dad-11d1-80b4-00c04fd430c4" {
+		t.Fatalf("ID mismatch")
 	}
-	if result[1].ID != "6ba7b810-9dad-11d1-80b4-00c04fd430c6" {
-		t.Fatalf("Result mismatch")
+	if jobs[1].ID != "6ba7b810-9dad-11d1-80b4-00c04fd430c6" {
+		t.Fatalf("ID mismatch")
+	}
+	if jobs[0].Name!= "ping" {
+		t.Fatalf("Name mismatch")
+	}
+	if jobs[0].TTR!= 1000 {
+		t.Fatalf("TTR mismatch")
+	}
+	if jobs[0].TTL!= 60000 {
+		t.Fatalf("TTL mismatch")
+	}
+	if !bytes.Equal([]byte("ping"), jobs[0].Payload) {
+		t.Fatalf("Payload mismatch")
+	}
+	if jobs[0].MaxAttempts!= 0 {
+		t.Fatalf("MaxAttempts mismatch")
+	}
+	if jobs[0].Attempts!= 0 {
+		t.Fatalf("Attempts mismatch")
+	}
+	if jobs[0].MaxFails!= 0 {
+		t.Fatalf("MaxFails mismatch")
+	}
+	if jobs[0].Fails!= 0 {
+		t.Fatalf("Fails mismatch")
+	}
+	if jobs[0].Priority!= 0 {
+		t.Fatalf("Fails mismatch")
+	}
+	if jobs[0].State!= 0 {
+		t.Fatalf("Fails mismatch")
+	}
+	timeRef := time.Date(2016, time.August, 22, 1, 50, 51, 0, time.UTC)
+	if !time.Time.Equal(jobs[0].Created, timeRef) { // 2016-08-22T02:00:17Z
+		t.Fatalf("Creation date mismatch: %s != %s", jobs[0].Created, timeRef)
 	}
 
 	expWrite := []byte(
@@ -1072,6 +1106,157 @@ func TestInspectJobsErrors(t *testing.T) {
 			),
 			expErr: ErrMalformed,
 		},
+		// Malformed "<id> <key-count>" line (no spaces)
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Malformed "<id> <key-count>" line (too many spaces)
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12 abc\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Malformed "<id> <key-count>" line (key count not a number)
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 xy\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Malformed "<key> <value>" line (no spaces)
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"nameping\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Malformed "<key> <value>" line (spaces in value)
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"name pi ng\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Malformed "name <value>" line (illegal characters in value)
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"name pi*ng\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid TTR
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"ttr -1\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid TTL
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"ttl -1\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid payload-size
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"payload-size -1\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid payload
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"payload-size 10\r\n" +
+					"payload abc\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid max-attempts
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"max-attempts -1\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid attempts
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"attempts -1\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid max-fails
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"max-fails -1\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid fails
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"fails -1\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid priority
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"priority xy\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid state
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"state xy\r\n",
+			),
+			expErr: ErrMalformed,
+		},
+		// Invalid created
+		{
+			resp: []byte(
+				"+OK 2\r\n" +
+					"6ba7b810-9dad-11d1-80b4-00c04fd430c4 12\r\n" +
+					"created 20invalid16-08-22T02:00:17Z\r\n",
+			),
+			expErr: ErrMalformed,
+		},
 	}
 	tests = append(tests, invalidCommonErrorTests()...)
 
@@ -1085,6 +1270,15 @@ func TestInspectJobsErrors(t *testing.T) {
 		if j != nil || err == nil || tt.expErr == nil || err.Error() != tt.expErr.Error() {
 			t.Fatalf("Response mismatch, err=%q, expErr=%q", err, tt.expErr)
 		}
+	}
+}
+
+func TestInspectJobsBadConnError(t *testing.T) {
+	conn := &TestBadWriteConn{}
+	client := NewClient(conn)
+	_, err := client.InspectJobs("ping", 0, 10)
+	if _, ok := err.(*NetError); !ok {
+		t.Fatalf("Error mismatch, err=%+v", err)
 	}
 }
 
