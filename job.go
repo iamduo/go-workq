@@ -1,5 +1,7 @@
 package workq
 
+import "time"
+
 // FgJob is executed by the "run" command.
 // Describes a foreground job specification.
 type FgJob struct {
@@ -50,4 +52,13 @@ type LeasedJob struct {
 type JobResult struct {
 	Success bool
 	Result  []byte
+}
+
+// InspectedJob is returned by the "inspect jobs" command.
+type InspectedJob struct {
+	BgJob
+	Attempts int // Number of already made attempts.
+	Fails int // Number of already occured fails.
+	State int // Current state of the job.
+	Created time.Time // Time of job creation
 }
